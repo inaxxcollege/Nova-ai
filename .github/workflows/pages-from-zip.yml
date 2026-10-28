@@ -4,10 +4,10 @@ name: Deploy NOVA from ZIP
 on:
   push:
     branches: [main]
-    paths:
-      - 'nova-github-deploy.zip'
-      - '.github/workflows/pages-from-zip.yml'
-  workflow_dispatch:
+   paths:
+  - 'nova-github-deploy.zip'
+  - 'nova-github-deployment.zip'
+  - '.github/workflows/pages-from-zip.yml'
 
 permissions:
   contents: read
@@ -24,11 +24,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract project ZIP
+            - name: Extract project ZIP
         run: |
-          test -f nova-github-deploy.zip
+          if [ -f nova-github-deploy.zip ]; then
+            ZIP_FILE=nova-github-deploy.zip
+          elif [ -f nova-github-deployment.zip ]; then
+            ZIP_FILE=nova-github-deployment.zip
+          else
+            echo "ZIP file not found"
+            exit 1
+          fi
           mkdir -p /tmp/nova-source
-          unzip -q nova-github-deploy.zip -d /tmp/nova-source
+          unzip -q "$ZIP_FILE" -d /tmp/nova-source
           cp -a /tmp/nova-source/nova-ai/. .
 
       - uses: actions/setup-node@v4
