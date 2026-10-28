@@ -1,0 +1,54 @@
+
+name: Deploy NOVA from ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'nova-github-deploy.zip'
+      - '.github/workflows/pages-from-zip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract project ZIP
+        run: |
+          test -f nova-github-deploy.zip
+          mkdir -p /tmp/nova-source
+          unzip -q nova-github-deploy.zip -d /tmp/nova-source
+          cp -a /tmp/nova-source/nova-ai/. .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build NOVA
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - uses: actions/deploy-pages@v4
+      
