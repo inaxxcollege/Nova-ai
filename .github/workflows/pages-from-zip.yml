@@ -3,11 +3,13 @@ name: Deploy NOVA from ZIP
 
 on:
   push:
-    branches: [main]
-   paths:
-  - 'nova-github-deploy.zip'
-  - 'nova-github-deployment.zip'
-  - '.github/workflows/pages-from-zip.yml'
+    branches:
+      - main
+    paths:
+      - 'nova-github-deploy.zip'
+      - 'nova-github-deployment.zip'
+      - '.github/workflows/pages-from-zip.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,29 +23,40 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-            - name: Extract project ZIP
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP
         run: |
           if [ -f nova-github-deploy.zip ]; then
             ZIP_FILE=nova-github-deploy.zip
           elif [ -f nova-github-deployment.zip ]; then
             ZIP_FILE=nova-github-deployment.zip
           else
-            echo "ZIP file not found"
+            echo "ZIP file not found in repository root"
             exit 1
           fi
+
           mkdir -p /tmp/nova-source
           unzip -q "$ZIP_FILE" -d /tmp/nova-source
-          cp -a /tmp/nova-source/nova-ai/. .
 
-      - uses: actions/setup-node@v4
+          if [ -d /tmp/nova-source/nova-ai ]; then
+            cp -a /tmp/nova-source/nova-ai/. .
+          else
+            echo "Expected nova-ai folder inside ZIP"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build NOVA
         run: npm run build
@@ -51,11 +64,14 @@ jobs:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
-      - uses: actions/configure-pages@v5
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      - uses: actions/deploy-pages@v4
-      
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        
